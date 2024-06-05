@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import random
 import shutil
+from arguments import train_arguments
+import yaml
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, f1_score, roc_curve, average_precision_score
@@ -17,7 +19,10 @@ import torch.optim as optim
 import torch.nn.functional as F
 import wandb
 
-from gnn import GNN
+from lightning.pytorch.loggers import WandbLogger
+
+from gnn import GNN, GraPeNet
+from dataloaders import GraPeDataset
 from util import read_file, separate_data, get_scheduler, find_dataset_using_name, EarlyStopping, BinaryCrossEntropyLoss
 from evaluate import Evaluator, plot_confusion_matrix
 
@@ -107,76 +112,23 @@ def eval(model, device, loader, evaluator):
     return evaluator.eval(input_dict), avg_loss
 
 def main():
-    # Training settings
-    parser = argparse.ArgumentParser(description='GNN baselines on ogbg-ppa data with Pytorch Geometrics')
-    parser.add_argument('--device', type=int, default=0,
-                        help='which gpu to use if any (default: 0)')
-
-    parser.add_argument('--gnn', type=str, default='gin',
-                        help='GNN gin, gin-virtual, or gcn, or gcn-virtual (default: gin-virtual)')
-    parser.add_argument('--num_layer', type=int, default=3,
-                        help='number of GNN message passing layers (default: 5)')
-    parser.add_argument('--emb_dim', type=int, default=128,
-                        help='dimensionality of hidden units in GNNs (default: 300)')
-    parser.add_argument('--drop_ratio', type=float, default=0.2,
-                        help='dropout ratio (default: 0.5)')
-    parser.add_argument('--jk', type=str, default='sum',
-                        help='Jumping knowledge aggregations : last | sum')
-    parser.add_argument('--graph_pooling', type=str, default='gmt',
-                        help='Graph pooling type : sum | mean | max | attention | set2set')
-
-
-    parser.add_argument('--seed', type=int, default=42,
-                        help='random seed for splitting the dataset into 10 (default: 0)')
-    parser.add_argument('--batch_size', type=int, default=8,
-                        help='input batch size for training (default: 32)')
-    parser.add_argument('--n_epochs', type=int, default=65,
-                        help='number of epochs to train (default: 100)')
-    parser.add_argument('--num_workers', type=int, default=4,
-                        help='number of workers (default: 0)')
-    parser.add_argument('--b', type=float, default=0.1,
-                        help='learning rate (default: 0.001)')
-    parser.add_argument('--lr', type=float, default=0.001,
-                        help='learning rate (default: 0.001)')
-    parser.add_argument('--lr_policy', type=str, default='step',
-                        help='learning rate policy. [linear | step | plateau | cosine]')
-    parser.add_argument('--lr_decay_iters', type=int, default=30,
-                        help='multiply by a gamma every lr_decay_iters iterations')
-    parser.add_argument('--l2_weight_decay', type=float, default=0.01,
-                        help='The weight decay for L2 Norm in Adam optimizer')
-
-    parser.add_argument('--dataset', type=str, default="tcga",
-                        help='dataset name (default: tcga)')
-    parser.add_argument('--phase', type=str, default="train",
-                        help='dataset phase : train | test | plot')
-    parser.add_argument('--n_classes', type=int, default=3,
-                        help='Number of classes')
-    parser.add_argument('--data_config', type=str, default="ctranspath_files",
-                        help='dataset config i.e tile size and bkg content (default: simclr_8Conn_files)')
-    parser.add_argument('--fdim', type=int, default=768,
-                        help='expected feature dim for each node.')
-
-    parser.add_argument('--n_folds', type=int, default=5,
-                        help='total number of folds.')
-    parser.add_argument('--fold_idx', type=int, default=0,
-                        help='the index of fold in 10-fold validation.  Should be less then 10.')
-    parser.add_argument('--no_val', action='store_true', help='no validation set for tuning')
     
-    parser.add_argument('--config_file', type=str, default="configs/config.yaml",
-                        help='parameter and hyperparameter config i.e all values for model and dataset parameters')
-    parser.add_argument('--project_name', type=str, default=None,
-                        help='parameter and hyperparameter config i.e all values for model and dataset parameters')
+    ### User Arguments
+    args = train_arguments()
+    with open(args.config_file, 'r') as stream:
+        config = yaml.safe_load(stream)
 
-    args = parser.parse_args()
-
-    if args.project_name is None:
+    # Logger: Lightning
+    wandblogger = WandbLogger(project=config.project_name)
+    
+    ### Wandb configurations: PyTorch
+    """ if args.project_name is None:
         # Add the project name as "Graph-Perciever-{}-{}" where {} is the current month in words and date.
         args.project_name = "Graph-Perciever_{}".format(time.strftime("%B-%d"))
         
 
     # wandb configurations & creating reqd. folders
     wandb.init(project=args.project_name, config=args.config_file)
-    # wandb.run.name = 'Aug15' + "_fold_" + str(args.fold_idx) 
     # Add the wandb.run.name as "Graph-Perciever-{}-{}" where {} is the current month in words and date.
     wandb.run.name = "Graph-Perciever_{}".format(time.strftime("%B-%d")) + "_fold_" + str(args.fold_idx)
     wandb.config.update({'fold_idx': args.fold_idx,
@@ -187,10 +139,10 @@ def main():
     config = wandb.config
     os.makedirs(config.log_path, exist_ok=True)
 
-    print(config)
+    print(config) """
 
-    ### set up seeds and gpu device
-    random.seed(config.seed)
+    ### set up seeds and gpu device: PyTorch
+    """  random.seed(config.seed)
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
     torch.cuda.manual_seed(config.seed)
@@ -199,9 +151,16 @@ def main():
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
-    device = torch.device("cuda:" + str(config.device)) if torch.cuda.is_available() else torch.device("cpu")
+    device = torch.device("cuda:" + str(config.device)) if torch.cuda.is_available() else torch.device("cpu") 
+    """
 
-    ### automatic dataloading and splitting
+    # model loading: Lightning
+    model = GraPeNet(config)
+
+    # dataset loading: Lightning
+    data_module = GraPeDataset(config)
+
+    ### automatic dataloading and splitting: PyTorch
     root = os.path.join('/SeaExp/Rushin/datasets', config.dataset.upper(), config.data_config)
 
     wsi_file = os.path.join('/SeaExp/Rushin/datasets', config.dataset.upper(), '%s_%s.txt' % (config.dataset.upper(), config.phase))
@@ -212,16 +171,6 @@ def main():
     dataset_class = find_dataset_using_name(config.dataset)
     isTrain = True if config.phase == 'train' else False
 
-    ###################### compute maximum number of nodes in dataset ######################
-    """  
-    args.max_nodes = 0
-    full_dataset = dataset_class(root, wsi_ids, config.fdim, config.n_classes, isTrain=isTrain)
-    for i in range(len(full_dataset)):
-        data = full_dataset[i]
-        args.max_nodes = max(args.max_nodes, data.num_nodes)   
-
-    print("Max nodes in dataset: ", args.max_nodes)  
-    """
     ########################################################################################
 
     if config.no_val:
@@ -245,13 +194,12 @@ def main():
     np.savetxt(os.path.join(config.log_path, f'{config.run_name}_fold_{config.fold_idx}_test.txt'), test_ids, fmt='%s')
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=config.num_workers)
 
-    # evaluation objects
+    # evaluation objects: PyTorch
     train_evaluator = Evaluator(train_dataset)
     valid_evaluator = Evaluator(valid_dataset) 
     test_evaluator = Evaluator(test_dataset)
  
-    # model loading
-    model = GNN(gnn_type = config.gnn, num_class = train_dataset.num_classes, num_layer = config.num_layer, input_dim = config.fdim, emb_dim = config.emb_dim, drop_ratio = config.drop_ratio, JK = config.jk, graph_pooling = config.graph_pooling).to(device)
+    
 
     optimizer = optim.AdamW(model.parameters(), lr=config.lr, betas=(0.9, 0.999), eps=1e-08, 
                             weight_decay=config.l2_weight_decay, 
@@ -259,7 +207,7 @@ def main():
 
     scheduler = get_scheduler(optimizer, config)
 
-    # initialize the early_stopping object
+    # initialize the early_stopping object: PyTorch
     early_stopping = EarlyStopping(patience=5, delta=0.02, verbose=True, path=os.path.join(config.log_path, 'checkpoint.pth'))
 
     if isTrain:
