@@ -27,10 +27,9 @@ batch_size:
   value: 8
 n_epochs:
   value: 30
-
 n_classes:
   value: 3
-gnn:
+gnn_type:
   value: gin
 num_layer:
   value: 3
@@ -38,10 +37,10 @@ drop_ratio:
   value: 0.2
 emb_dim:
   value: 64
-fdim:
+input_dim:
   value: 768
 graph_pooling:
-  value: gmt
+  value: perceiver
 jk:
   value: sum
 seed:

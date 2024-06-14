@@ -38,12 +38,12 @@ class MLP(torch.nn.Module):
 
 
 ### GNN to generate node embedding
-class GNN_node(torch.nn.Module):
+class GNN(torch.nn.Module):
     """
     Output:
         node representations
     """
-    def __init__(self, num_layer, input_dim, emb_dim, drop_ratio = 0.5, JK = "last", gnn_type = 'gin'):
+    def __init__(self, num_layer, input_dim, emb_dim, drop_ratio = 0.5, jk = "last", gnn_type = 'gin'):
         '''
             emb_dim (int): node embedding dimensionality
             num_layer (int): number of GNN message passing layers
@@ -52,7 +52,7 @@ class GNN_node(torch.nn.Module):
         super(GNN_node, self).__init__()
         self.num_layer = num_layer
         self.drop_ratio = drop_ratio
-        self.JK = JK
+        self.jk = jk
 
         if self.num_layer < 0:
             raise ValueError("Number of GNN layers must be greater than or equal 0.")

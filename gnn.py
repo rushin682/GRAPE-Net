@@ -4,7 +4,7 @@ from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_poo
 import torch.nn.functional as F
 from torch.nn.init import kaiming_normal_
 
-from conv import GNN_node
+from modules import GNN_node
 from aggr import GraphMultisetAggregation
 
 from torch_scatter import scatter_mean, scatter
