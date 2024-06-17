@@ -49,7 +49,7 @@ class GNN(torch.nn.Module):
             num_layer (int): number of GNN message passing layers
 
         '''
-        super(GNN_node, self).__init__()
+        super(GNN, self).__init__()
         self.num_layer = num_layer
         self.drop_ratio = drop_ratio
         self.jk = jk

@@ -19,8 +19,6 @@ from torch_geometric.nn.pool import global_add_pool
 from torch_geometric.utils import to_dense_batch, to_dense_adj
 from torch.nn import LayerNorm, Linear, MultiheadAttention, Parameter
 
-from torchsummary import summary
-
 def cache_fn(f):
     cache = dict()
     @wraps(f)

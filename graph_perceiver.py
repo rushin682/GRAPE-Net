@@ -3,23 +3,25 @@ from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_poo
 from torch.nn.init import kaiming_normal_
 
 from modules import GNN
-from aggr import PerceiverPool
+from aggr import GraphMultisetAggregation
 
-class GraPeNet(torch.nn.Module):
+class GraphPerceiver(torch.nn.Module):
     def __init__(self, config):
         '''
             num_tasks (int): number of labels to be predicted
             virtual_node (bool): whether to add virtual node or not
         '''
 
-        super(GraPeNet, self).__init__()
-        self.num_layer = config.num_layer
-        self.input_dim = config.input_dim
-        self.emb_dim = config.emb_dim
-        self.gnn_type = config.gnn_type
-        self.drop_ratio = config.drop_ratio
-        self.jk = config.jk # jumping knowledge connections (i.e skip connections) | options: 'last', 'sum' 
-        self.graph_pooling = config.graph_pooling
+        super(GraphPerceiver, self).__init__()
+        self.num_layer = config['num_layer']['value']
+        self.input_dim = config['input_dim']['value']
+        self.emb_dim = config['emb_dim']['value']
+        self.gnn_type = config['gnn_type']['value']
+        self.drop_ratio = config['drop_ratio']['value']
+        self.jk = config['jk']['value'] # jumping knowledge connections (i.e skip connections) | options: 'last', 'sum' 
+        self.graph_pooling = config['graph_pooling']['value']
+
+        self.n_classes = config['n_classes']['value']
 
         if self.num_layer < 0:
             raise ValueError("Number of GNN layers must be greater than 0.")
@@ -40,7 +42,7 @@ class GraPeNet(torch.nn.Module):
         elif self.graph_pooling == "max":
             self.pool = global_max_pool
         elif self.graph_pooling == "perceiver":
-            self.pool = PerceiverPool(dim=self.emb_dim, 
+            self.pool = GraphMultisetAggregation(dim=self.emb_dim, 
                                       k=200, 
                                       num_pma_blocks=1, 
                                       num_encoder_blocks=3, 
@@ -51,7 +53,7 @@ class GraPeNet(torch.nn.Module):
 
         # classification layers
         self.pred_head = torch.nn.Sequential(torch.nn.Linear(self.emb_dim, self.emb_dim, bias=False),
-                                             torch.nn.Linear(self.emb_dim, self.num_class, bias=False))
+                                             torch.nn.Linear(self.emb_dim, self.n_classes, bias=False))
         
         # Initialize classification prediction head layers with Kaiming normal initialization
         for m in self.pred_head.modules():
@@ -83,7 +85,7 @@ if __name__ == '__main__':
     with open(config_file, 'r') as stream:
         config = yaml.safe_load(stream)
 
-    GraPeNet(config)
+    model = GraphPerceiver(config)
     print('GraPeNet initialized successfully!')
 
 
