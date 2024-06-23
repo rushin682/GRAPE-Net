@@ -21,7 +21,7 @@ import wandb
 
 from lightning.pytorch.loggers import WandbLogger
 
-from gnn import GNN, GraPeNet
+from graph_perceiver import GraphPerceiver
 from dataloaders import GraPeDataset
 from util import read_file, separate_data, get_scheduler, find_dataset_using_name, EarlyStopping, BinaryCrossEntropyLoss
 from evaluate import Evaluator, plot_confusion_matrix
@@ -155,7 +155,7 @@ def main():
     """
 
     # model loading: Lightning
-    model = GraPeNet(config)
+    model = GraphPerceiver(config)
 
     # dataset loading: Lightning
     data_module = GraPeDataset(config)

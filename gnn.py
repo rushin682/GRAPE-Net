@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.nn.init import kaiming_normal_
 
 from modules import GNN_node
-from aggr import GraphMultisetAggregation
+from aggregators import GraphMultisetAggregation
 
 from torch_scatter import scatter_mean, scatter
 

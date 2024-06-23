@@ -3,7 +3,7 @@ from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_poo
 from torch.nn.init import kaiming_normal_
 
 from modules import GNN
-from aggr import GraphMultisetAggregation
+from aggregators import GraphMultisetAggregation
 
 class GraphPerceiver(torch.nn.Module):
     def __init__(self, config):
